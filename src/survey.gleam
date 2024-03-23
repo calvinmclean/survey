@@ -5,7 +5,19 @@ import gleam/erlang
 
 // no default means it is required
 // help is only used for ask_help or if invalid input is provided
+
+/// Configure a survey prompt to present to the user.
+/// 
+/// Question allows receiving freeform String responses
+/// 
+/// Confirmation presents the user with a [y/n] prompt to record a Bool response
 pub type Survey {
+  /// Question allows receiving freeform String responses
+  ///   - `prompt`: printed prompt so the user knows expectations
+  ///   - `help`: optional help message to display if input is invalid or using `ask_help`
+  ///   - `default`: optional default to use if empty input is received. If this is None, then input is required
+  ///   - `validate`: optional validation function to determine if input is acceptable
+  ///   - `transform`: optional transformation function to modify input
   Question(
     prompt: String,
     help: Option(String),
@@ -14,6 +26,12 @@ pub type Survey {
     transform: Option(fn(String) -> String),
   )
 
+  /// Confirmation presents the user with a [y/n] prompt to record a Bool response
+  ///   - `prompt`: printed prompt so the user knows expectations
+  ///   - `help`: optional help message to display if input is invalid or using `ask_help`
+  ///   - `default`: optional default to use if empty input is received. If this is None, then input is required.
+  ///     - `[y/n]`, `[Y/n]`, `[y/N]` are added to the prompt for default None, True, and False respectively
+  ///   - `transform`: optional transformation function to modify input
   Confirmation(
     prompt: String,
     help: Option(String),
@@ -22,6 +40,19 @@ pub type Survey {
   )
 }
 
+/// Constructor for a Question that can make code more readable with labelled arguments
+///
+/// ## Example
+///
+/// ```gleam
+/// survey.new_question(
+///   prompt: "First Name:",
+///   help: Some("Please enter your first name"),
+///   default: None,
+///   validate: None,
+///   transform: None,
+/// ),
+/// ```
 pub fn new_question(
   prompt prompt: String,
   help help: Option(String),
@@ -32,6 +63,18 @@ pub fn new_question(
   Question(prompt, help, default, validate, transform)
 }
 
+/// Constructor for a Confirmation that can make code more readable with labelled arguments
+///
+/// ## Example
+///
+/// ```gleam
+/// survey.new_confirmation(
+///   prompt: "Are you a survey fan?:",
+///   help: Some("It's a great library"),
+///   default: Some(True),
+///   transform: Some(fn(_: Bool) -> Bool { True }),
+/// ),
+/// ```
 pub fn new_confirmation(
   prompt prompt: String,
   help help: Option(String),
@@ -41,6 +84,7 @@ pub fn new_confirmation(
   Confirmation(prompt, help, default, transform)
 }
 
+/// Answer is used to have different result types for Questions and Confirmations. Also allows handling errors
 pub type Answer {
   StringAnswer(String)
   BoolAnswer(Bool)
@@ -48,6 +92,7 @@ pub type Answer {
   NoAnswer
 }
 
+/// AskError are different errors that could occur when handling prompts
 pub type AskError {
   // error from erlang.get_line
   Input
@@ -57,6 +102,8 @@ pub type AskError {
   Validation
 }
 
+/// GetLineFn is a function which accepts a prompt String and returns user input line.
+/// It allows using `ask_fn` with custom input handling (useful for testing or other purposes)
 type GetLineFn =
   fn(String) -> Result(String, AskError)
 
@@ -67,11 +114,12 @@ fn default_get_line(prompt: String) -> Result(String, AskError) {
   }
 }
 
+/// ask will present the user with a prompt and handle the Answer
 pub fn ask(q: Survey) -> Answer {
   ask_fn(q, default_get_line)
 }
 
-// provide your own function to read user input
+/// same as `ask`, but allows providing a custom input handler
 pub fn ask_fn(q: Survey, get_line: GetLineFn) -> Answer {
   let input =
     case q {
@@ -89,10 +137,12 @@ pub fn ask_fn(q: Survey, get_line: GetLineFn) -> Answer {
   }
 }
 
+/// this is the same as `ask`, but it prints the help message before the prompt
 pub fn ask_help(q: Survey) -> Answer {
   ask_help_fn(q, default_get_line)
 }
 
+/// same as `ask_help`, but allows providing a custom input handler
 pub fn ask_help_fn(q: Survey, get_line: GetLineFn) -> Answer {
   case q.help {
     Some(help_msg) -> io.println(help_msg)
@@ -102,10 +152,12 @@ pub fn ask_help_fn(q: Survey, get_line: GetLineFn) -> Answer {
   ask_fn(q, get_line)
 }
 
+/// ask_many allows presenting the user with many prompts sequentially
 pub fn ask_many(qs: List(#(String, Survey))) -> List(#(String, Answer)) {
   ask_many_fn(qs, [])
 }
 
+/// same as `ask_many`, but allows providing a custom input handler
 pub fn ask_many_fn(
   qs: List(#(String, Survey)),
   get_lines: List(GetLineFn),
@@ -113,6 +165,7 @@ pub fn ask_many_fn(
   ask_many_loop(qs, ask, get_lines)
 }
 
+/// same as `ask_many`, but prints help message before each prompt
 pub fn ask_many_help(qs: List(#(String, Survey))) -> List(#(String, Answer)) {
   ask_many_loop(qs, ask_help, [])
 }
