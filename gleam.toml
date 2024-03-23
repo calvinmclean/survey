@@ -1,0 +1,14 @@
+name = "survey"
+version = "0.1.0"
+
+description = "A library to easily create rich and interactive prompts in the terminal"
+licences = ["Apache-2.0"]
+repository = { type = "github", user = "calvinmclean", repo = "survey" }
+links = [{ title = "Website", href = "https://gleam.run" }]
+
+[dependencies]
+gleam_stdlib = "~> 0.34 or ~> 1.0"
+gleam_erlang = "~> 0.25"
+
+[dev-dependencies]
+gleeunit = "~> 1.0"
