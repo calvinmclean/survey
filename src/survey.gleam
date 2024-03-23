@@ -157,7 +157,7 @@ fn handle_input(input: String, q: Survey) -> Answer {
         _ ->
           case validate_fn(input) {
             True -> StringAnswer(input)
-            False -> AnswerError(Validation)
+            False -> ask_help(q)
           }
       }
     }
@@ -217,7 +217,7 @@ fn handle_default(q: Survey) -> Answer {
   }
 }
 
-pub fn confirm_prompt(default: Option(Bool)) -> String {
+fn confirm_prompt(default: Option(Bool)) -> String {
   case default {
     option.Some(default_true) if default_true -> " [Y/n] "
     option.Some(_) -> " [y/N] "
