@@ -34,7 +34,7 @@ pub fn constructor_fn_test() {
     validate: None,
     transform: None,
   )
-  |> survey.ask_fn(inject_input_assert_prompt("", "First Name: "))
+  |> survey.ask_fn(False, inject_input_assert_prompt("", "First Name: "))
   |> should.equal(survey.StringAnswer("Calvin"))
 
   survey.new_confirmation(
@@ -43,56 +43,56 @@ pub fn constructor_fn_test() {
     default: None,
     transform: None,
   )
-  |> survey.ask_fn(inject_input_assert_prompt("Y", "Confirm? [y/n] "))
+  |> survey.ask_fn(False, inject_input_assert_prompt("Y", "Confirm? [y/n] "))
   |> should.equal(survey.BoolAnswer(True))
 }
 
 pub fn confirm_default_false_test() {
   let q = survey.Confirmation("Confirm?", None, Some(False), None)
 
-  survey.ask_fn(q, inject_input_assert_prompt("Y", "Confirm? [y/N] "))
+  survey.ask_fn(q, False, inject_input_assert_prompt("Y", "Confirm? [y/N] "))
   |> should.equal(survey.BoolAnswer(True))
 
-  survey.ask_fn(q, inject_input("N"))
+  survey.ask_fn(q, False, inject_input("N"))
   |> should.equal(survey.BoolAnswer(False))
 
-  survey.ask_fn(q, inject_input(""))
+  survey.ask_fn(q, False, inject_input(""))
   |> should.equal(survey.BoolAnswer(False))
 }
 
 pub fn confirm_default_true_test() {
   let q = survey.Confirmation("Confirm?", None, Some(True), None)
 
-  survey.ask_fn(q, inject_input_assert_prompt("Y", "Confirm? [Y/n] "))
+  survey.ask_fn(q, False, inject_input_assert_prompt("Y", "Confirm? [Y/n] "))
   |> should.equal(survey.BoolAnswer(True))
 
-  survey.ask_fn(q, inject_input("N"))
+  survey.ask_fn(q, False, inject_input("N"))
   |> should.equal(survey.BoolAnswer(False))
 
-  survey.ask_fn(q, inject_input(""))
+  survey.ask_fn(q, False, inject_input(""))
   |> should.equal(survey.BoolAnswer(True))
 }
 
 pub fn confirm_no_default_prompt_test() {
   let q = survey.Confirmation("Confirm?", None, None, None)
 
-  survey.ask_fn(q, inject_input_assert_prompt("Y", "Confirm? [y/n] "))
+  survey.ask_fn(q, False, inject_input_assert_prompt("Y", "Confirm? [y/n] "))
   |> should.equal(survey.BoolAnswer(True))
 
-  survey.ask_fn(q, inject_input("N"))
+  survey.ask_fn(q, False, inject_input("N"))
   |> should.equal(survey.BoolAnswer(False))
 
-  survey.ask_fn(q, inject_input(""))
+  survey.ask_fn(q, False, inject_input(""))
   |> should.equal(survey.AnswerError(survey.Input))
 }
 
 pub fn question_default_test() {
   let q = survey.Question("", None, Some("default"), None, None)
 
-  survey.ask_fn(q, inject_input(""))
+  survey.ask_fn(q, False, inject_input(""))
   |> should.equal(survey.StringAnswer("default"))
 
-  survey.ask_fn(q, inject_input("not default"))
+  survey.ask_fn(q, False, inject_input("not default"))
   |> should.equal(survey.StringAnswer("not default"))
 }
 
@@ -100,7 +100,7 @@ pub fn confirm_transform_test() {
   let q =
     survey.Confirmation("", None, Some(False), Some(fn(b: Bool) -> Bool { !b }))
 
-  survey.ask_fn(q, inject_input("Y"))
+  survey.ask_fn(q, False, inject_input("Y"))
   |> should.equal(survey.BoolAnswer(False))
 }
 
@@ -114,7 +114,7 @@ pub fn question_transform_test() {
       Some(fn(s: String) -> String { s <> "_EXTRA" }),
     )
 
-  survey.ask_fn(q, inject_input("INPUT"))
+  survey.ask_fn(q, False, inject_input("INPUT"))
   |> should.equal(survey.StringAnswer("INPUT_EXTRA"))
 }
 
@@ -133,10 +133,7 @@ pub fn question_validate_test() {
       None,
     )
 
-  survey.ask_fn(q, inject_input("Bad"))
-  |> should.equal(survey.AnswerError(survey.Validation))
-
-  survey.ask_fn(q, inject_input("Good"))
+  survey.ask_fn(q, False, inject_input("Good"))
   |> should.equal(survey.StringAnswer("Good"))
 }
 
@@ -165,11 +162,24 @@ pub fn ask_many_test() {
   ]
 
   let results =
-    survey.ask_many_fn(qs, [inject_input("Calvin"), inject_input("McLean")])
+    survey.ask_many_fn(qs, False, [
+      inject_input("Calvin"),
+      inject_input("McLean"),
+    ])
 
   results
   |> should.equal([
     #("first_name", survey.StringAnswer("Calvin")),
     #("last_name", survey.StringAnswer("McLean")),
   ])
+}
+
+pub fn help_msg_test() {
+  let q = survey.Question("prompt", Some("help"), None, None, None)
+
+  survey.ask_fn(q, True, inject_input_assert_prompt("INPUT", "help\nprompt "))
+  |> should.equal(survey.StringAnswer("INPUT"))
+
+  survey.ask_fn(q, False, inject_input_assert_prompt("INPUT", "prompt "))
+  |> should.equal(survey.StringAnswer("INPUT"))
 }

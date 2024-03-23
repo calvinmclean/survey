@@ -1,10 +1,6 @@
-import gleam/io
 import gleam/option.{type Option, None, Some}
 import gleam/string
 import gleam/erlang
-
-// no default means it is required
-// help is only used for ask_help or if invalid input is provided
 
 /// Configure a survey prompt to present to the user.
 /// 
@@ -14,7 +10,7 @@ import gleam/erlang
 pub type Survey {
   /// Question allows receiving freeform String responses
   ///   - `prompt`: printed prompt so the user knows expectations
-  ///   - `help`: optional help message to display if input is invalid or using `ask_help`
+  ///   - `help`: optional help message to display if input is invalid or using `ask(help: True)`
   ///   - `default`: optional default to use if empty input is received. If this is None, then input is required
   ///   - `validate`: optional validation function to determine if input is acceptable
   ///   - `transform`: optional transformation function to modify input
@@ -28,7 +24,7 @@ pub type Survey {
 
   /// Confirmation presents the user with a [y/n] prompt to record a Bool response
   ///   - `prompt`: printed prompt so the user knows expectations
-  ///   - `help`: optional help message to display if input is invalid or using `ask_help`
+  ///   - `help`: optional help message to display if input is invalid or using `ask(help: True)`
   ///   - `default`: optional default to use if empty input is received. If this is None, then input is required.
   ///     - `[y/n]`, `[Y/n]`, `[y/N]` are added to the prompt for default None, True, and False respectively
   ///   - `transform`: optional transformation function to modify input
@@ -115,16 +111,22 @@ fn default_get_line(prompt: String) -> Result(String, AskError) {
 }
 
 /// ask will present the user with a prompt and handle the Answer
-pub fn ask(q: Survey) -> Answer {
-  ask_fn(q, default_get_line)
+pub fn ask(q: Survey, help: Bool) -> Answer {
+  ask_fn(q, help, default_get_line)
 }
 
 /// same as `ask`, but allows providing a custom input handler
-pub fn ask_fn(q: Survey, get_line: GetLineFn) -> Answer {
+pub fn ask_fn(q: Survey, help: Bool, get_line: GetLineFn) -> Answer {
   let input =
-    case q {
-      Question(_, _, _, _, _) -> q.prompt <> " "
-      Confirmation(_, _, default, _) -> q.prompt <> confirm_prompt(default)
+    {
+      case q.help {
+        Some(help_msg) if help -> help_msg <> "\n"
+        None | Some(_) -> ""
+      }
+      <> case q {
+        Question(_, _, _, _, _) -> q.prompt <> " "
+        Confirmation(_, _, default, _) -> q.prompt <> confirm_prompt(default)
+      }
     }
     |> get_line
 
@@ -137,63 +139,46 @@ pub fn ask_fn(q: Survey, get_line: GetLineFn) -> Answer {
   }
 }
 
-/// this is the same as `ask`, but it prints the help message before the prompt
-pub fn ask_help(q: Survey) -> Answer {
-  ask_help_fn(q, default_get_line)
-}
-
-/// same as `ask_help`, but allows providing a custom input handler
-pub fn ask_help_fn(q: Survey, get_line: GetLineFn) -> Answer {
-  case q.help {
-    Some(help_msg) -> io.println(help_msg)
-    None -> Nil
-  }
-
-  ask_fn(q, get_line)
-}
-
 /// ask_many allows presenting the user with many prompts sequentially
-pub fn ask_many(qs: List(#(String, Survey))) -> List(#(String, Answer)) {
-  ask_many_fn(qs, [])
+pub fn ask_many(
+  qs: List(#(String, Survey)),
+  help: Bool,
+) -> List(#(String, Answer)) {
+  ask_many_fn(qs, help, [])
 }
 
 /// same as `ask_many`, but allows providing a custom input handler
 pub fn ask_many_fn(
   qs: List(#(String, Survey)),
+  help: Bool,
   get_lines: List(GetLineFn),
 ) -> List(#(String, Answer)) {
-  ask_many_loop(qs, ask, get_lines)
-}
-
-/// same as `ask_many`, but prints help message before each prompt
-pub fn ask_many_help(qs: List(#(String, Survey))) -> List(#(String, Answer)) {
-  ask_many_loop(qs, ask_help, [])
+  ask_many_loop(qs, help, get_lines)
 }
 
 fn ask_many_loop(
   qs: List(#(String, Survey)),
-  ask: fn(Survey) -> Answer,
+  help: Bool,
   get_lines: List(GetLineFn),
 ) -> List(#(String, Answer)) {
   let f = fn(
     qs: List(#(String, Survey)),
-    ask: fn(Survey) -> Answer,
     get_line: GetLineFn,
     get_lines: List(GetLineFn),
   ) -> List(#(String, Answer)) {
     case qs {
       [] -> []
-      [#(key, q)] -> [#(key, ask_fn(q, get_line))]
+      [#(key, q)] -> [#(key, ask_fn(q, help, get_line))]
       [#(key, q), ..tail] -> [
-        #(key, ask_fn(q, get_line)),
-        ..ask_many_loop(tail, ask, get_lines)
+        #(key, ask_fn(q, help, get_line)),
+        ..ask_many_loop(tail, help, get_lines)
       ]
     }
   }
 
   case get_lines {
-    [] -> f(qs, ask, default_get_line, [])
-    [get_line, ..get_lines_tail] -> f(qs, ask, get_line, get_lines_tail)
+    [] -> f(qs, default_get_line, [])
+    [get_line, ..get_lines_tail] -> f(qs, get_line, get_lines_tail)
   }
 }
 
@@ -210,7 +195,7 @@ fn handle_input(input: String, q: Survey) -> Answer {
         _ ->
           case validate_fn(input) {
             True -> StringAnswer(input)
-            False -> ask_help(q)
+            False -> ask(q, True)
           }
       }
     }
@@ -220,7 +205,7 @@ fn handle_input(input: String, q: Survey) -> Answer {
         "Y" | "y" -> BoolAnswer(True)
         "N" | "n" -> BoolAnswer(False)
         "" -> handle_default(q)
-        _ -> ask_help(q)
+        _ -> ask(q, True)
       }
   }
   |> handle_transform(q)
@@ -260,12 +245,12 @@ fn handle_default(q: Survey) -> Answer {
     Question(_, _, default, _, _) ->
       case default {
         Some(def) -> StringAnswer(def)
-        None -> ask_help(q)
+        None -> ask(q, True)
       }
     Confirmation(_, _, default, _) ->
       case default {
         Some(def) -> BoolAnswer(def)
-        None -> ask_help(q)
+        None -> ask(q, True)
       }
   }
 }
