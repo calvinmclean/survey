@@ -53,7 +53,7 @@ pub fn main() {
         ),
       ),
     ]
-    |> survey.ask_many(False)
+    |> survey.ask_many(help: False)
 
   case survey_fan {
     True -> io.println("Hello, " <> first_name <> " " <> last_name <> "!")

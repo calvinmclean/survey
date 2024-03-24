@@ -111,12 +111,12 @@ fn default_get_line(prompt: String) -> Result(String, AskError) {
 }
 
 /// ask will present the user with a prompt and handle the Answer
-pub fn ask(q: Survey, help: Bool) -> Answer {
-  ask_fn(q, help, default_get_line)
+pub fn ask(q: Survey, help help: Bool) -> Answer {
+  ask_fn(q, default_get_line, help: help)
 }
 
 /// same as `ask`, but allows providing a custom input handler
-pub fn ask_fn(q: Survey, help: Bool, get_line: GetLineFn) -> Answer {
+pub fn ask_fn(q: Survey, get_line: GetLineFn, help help: Bool) -> Answer {
   let input =
     {
       case q.help {
@@ -142,24 +142,24 @@ pub fn ask_fn(q: Survey, help: Bool, get_line: GetLineFn) -> Answer {
 /// ask_many allows presenting the user with many prompts sequentially
 pub fn ask_many(
   qs: List(#(String, Survey)),
-  help: Bool,
+  help help: Bool,
 ) -> List(#(String, Answer)) {
-  ask_many_fn(qs, help, [])
+  ask_many_fn(qs, [], help: help)
 }
 
 /// same as `ask_many`, but allows providing a custom input handler
 pub fn ask_many_fn(
   qs: List(#(String, Survey)),
-  help: Bool,
   get_lines: List(GetLineFn),
+  help help: Bool,
 ) -> List(#(String, Answer)) {
-  ask_many_loop(qs, help, get_lines)
+  ask_many_loop(qs, get_lines, help: help)
 }
 
 fn ask_many_loop(
   qs: List(#(String, Survey)),
-  help: Bool,
   get_lines: List(GetLineFn),
+  help help: Bool,
 ) -> List(#(String, Answer)) {
   let f = fn(
     qs: List(#(String, Survey)),
@@ -168,10 +168,10 @@ fn ask_many_loop(
   ) -> List(#(String, Answer)) {
     case qs {
       [] -> []
-      [#(key, q)] -> [#(key, ask_fn(q, help, get_line))]
+      [#(key, q)] -> [#(key, ask_fn(q, get_line, help: help))]
       [#(key, q), ..tail] -> [
-        #(key, ask_fn(q, help, get_line)),
-        ..ask_many_loop(tail, help, get_lines)
+        #(key, ask_fn(q, get_line, help: help)),
+        ..ask_many_loop(tail, get_lines, help: help)
       ]
     }
   }
@@ -195,7 +195,7 @@ fn handle_input(input: String, q: Survey) -> Answer {
         _ ->
           case validate_fn(input) {
             True -> StringAnswer(input)
-            False -> ask(q, True)
+            False -> ask(q, help: True)
           }
       }
     }
@@ -205,7 +205,7 @@ fn handle_input(input: String, q: Survey) -> Answer {
         "Y" | "y" -> BoolAnswer(True)
         "N" | "n" -> BoolAnswer(False)
         "" -> handle_default(q)
-        _ -> ask(q, True)
+        _ -> ask(q, help: True)
       }
   }
   |> handle_transform(q)
@@ -245,12 +245,12 @@ fn handle_default(q: Survey) -> Answer {
     Question(_, _, default, _, _) ->
       case default {
         Some(def) -> StringAnswer(def)
-        None -> ask(q, True)
+        None -> ask(q, help: True)
       }
     Confirmation(_, _, default, _) ->
       case default {
         Some(def) -> BoolAnswer(def)
-        None -> ask(q, True)
+        None -> ask(q, help: True)
       }
   }
 }

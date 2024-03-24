@@ -1,5 +1,5 @@
 name = "survey"
-version = "0.2.0"
+version = "0.3.0"
 
 description = "A library to easily create rich and interactive prompts in the terminal"
 licences = ["Apache-2.0"]
